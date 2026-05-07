@@ -1,0 +1,18 @@
+{
+  "name": "空战突击",
+  "short_name": "空战突击",
+  "description": "触屏友好的飞机射击小游戏。",
+  "start_url": "./index.html",
+  "display": "fullscreen",
+  "orientation": "portrait-primary",
+  "background_color": "#071018",
+  "theme_color": "#0a2237",
+  "icons": [
+    {
+      "src": "icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

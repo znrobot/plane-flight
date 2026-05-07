@@ -1,0 +1,11 @@
+{
+  "appId": "com.codex.airstrike",
+  "appName": "空战突击",
+  "webDir": "www",
+  "bundledWebRuntime": false,
+  "android": {
+    "allowMixedContent": false,
+    "captureInput": true,
+    "webContentsDebuggingEnabled": false
+  }
+}

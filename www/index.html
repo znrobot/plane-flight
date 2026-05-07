@@ -1,0 +1,896 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+  <meta name="theme-color" content="#0a2237">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <link rel="manifest" href="manifest.webmanifest">
+  <title>空战突击</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      font-family: "Microsoft YaHei", "Segoe UI", Arial, sans-serif;
+      background: #071018;
+      color: #eef7ff;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      overflow: hidden;
+      background:
+        radial-gradient(circle at 20% 18%, rgba(104, 187, 255, 0.22), transparent 28%),
+        radial-gradient(circle at 82% 26%, rgba(255, 196, 92, 0.14), transparent 24%),
+        linear-gradient(180deg, #0a2237 0%, #0d455f 46%, #122331 100%);
+    }
+
+    .game-shell {
+      position: relative;
+      width: 100vw;
+      height: 100vh;
+      display: grid;
+      place-items: center;
+      padding: 18px;
+    }
+
+    canvas {
+      width: min(100vw - 36px, 980px);
+      height: min(100vh - 36px, 680px);
+      max-height: 680px;
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      border-radius: 8px;
+      background: #11354e;
+      box-shadow: 0 24px 70px rgba(0, 0, 0, 0.35);
+      touch-action: none;
+    }
+
+    .hud {
+      position: absolute;
+      top: 24px;
+      left: 50%;
+      width: min(100vw - 48px, 930px);
+      transform: translateX(-50%);
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      align-items: center;
+      pointer-events: none;
+      font-weight: 700;
+      text-shadow: 0 2px 8px rgba(0, 0, 0, 0.45);
+    }
+
+    .stat-group {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      min-width: 0;
+    }
+
+    .stat {
+      min-width: 76px;
+      padding: 8px 10px;
+      border: 1px solid rgba(255, 255, 255, 0.18);
+      border-radius: 8px;
+      background: rgba(5, 15, 24, 0.58);
+      backdrop-filter: blur(10px);
+      font-size: 14px;
+      line-height: 1.1;
+      white-space: nowrap;
+    }
+
+    .hint {
+      padding: 8px 10px;
+      border-radius: 8px;
+      background: rgba(5, 15, 24, 0.48);
+      color: rgba(238, 247, 255, 0.82);
+      font-size: 13px;
+      font-weight: 600;
+      white-space: nowrap;
+    }
+
+    .touch-controls {
+      position: absolute;
+      inset: auto 0 max(18px, env(safe-area-inset-bottom)) 0;
+      display: none;
+      justify-content: space-between;
+      align-items: flex-end;
+      padding: 0 max(18px, env(safe-area-inset-left)) 0 max(18px, env(safe-area-inset-right));
+      pointer-events: none;
+    }
+
+    .stick {
+      position: relative;
+      width: 132px;
+      height: 132px;
+      border: 1px solid rgba(255, 255, 255, 0.22);
+      border-radius: 50%;
+      background: rgba(5, 15, 24, 0.36);
+      box-shadow: inset 0 0 26px rgba(255, 255, 255, 0.08);
+      pointer-events: auto;
+      touch-action: none;
+    }
+
+    .stick-knob {
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      width: 54px;
+      height: 54px;
+      border-radius: 50%;
+      background: rgba(238, 247, 255, 0.86);
+      transform: translate(-50%, -50%);
+      box-shadow: 0 8px 20px rgba(0, 0, 0, 0.28);
+    }
+
+    .touch-actions {
+      display: flex;
+      align-items: flex-end;
+      gap: 14px;
+      pointer-events: auto;
+    }
+
+    .touch-button {
+      width: 76px;
+      height: 76px;
+      padding: 0;
+      border: 1px solid rgba(255, 255, 255, 0.18);
+      border-radius: 50%;
+      background: rgba(255, 202, 82, 0.9);
+      color: #17202a;
+      font-size: 15px;
+      box-shadow: 0 12px 28px rgba(0, 0, 0, 0.28);
+      touch-action: none;
+    }
+
+    .touch-button.secondary {
+      width: 58px;
+      height: 58px;
+      background: rgba(238, 247, 255, 0.82);
+      font-size: 13px;
+    }
+
+    .overlay {
+      position: absolute;
+      inset: 0;
+      display: grid;
+      place-items: center;
+      padding: 18px;
+      pointer-events: none;
+    }
+
+    .panel {
+      width: min(92vw, 430px);
+      padding: 24px;
+      border: 1px solid rgba(255, 255, 255, 0.22);
+      border-radius: 8px;
+      background: rgba(7, 16, 24, 0.74);
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.35);
+      backdrop-filter: blur(14px);
+      text-align: center;
+      pointer-events: auto;
+    }
+
+    .panel[hidden] {
+      display: none;
+    }
+
+    h1 {
+      margin: 0 0 10px;
+      font-size: clamp(30px, 6vw, 52px);
+      letter-spacing: 0;
+    }
+
+    p {
+      margin: 8px 0 18px;
+      color: rgba(238, 247, 255, 0.8);
+      line-height: 1.6;
+    }
+
+    button {
+      appearance: none;
+      border: 0;
+      border-radius: 8px;
+      padding: 12px 18px;
+      background: #ffca52;
+      color: #17202a;
+      cursor: pointer;
+      font: inherit;
+      font-weight: 800;
+      box-shadow: 0 10px 26px rgba(255, 202, 82, 0.24);
+    }
+
+    button:focus-visible {
+      outline: 3px solid rgba(255, 255, 255, 0.82);
+      outline-offset: 3px;
+    }
+
+    @media (max-width: 720px) {
+      .game-shell {
+        padding: 10px;
+      }
+
+      canvas {
+        width: calc(100vw - 20px);
+        height: calc(100vh - 20px);
+      }
+
+      .hud {
+        top: 16px;
+        width: calc(100vw - 32px);
+        align-items: flex-start;
+      }
+
+      .stat-group {
+        flex-wrap: wrap;
+        gap: 6px;
+      }
+
+      .stat {
+        min-width: 65px;
+        padding: 7px 8px;
+        font-size: 12px;
+      }
+
+      .hint {
+        display: none;
+      }
+
+      .touch-controls {
+        display: flex;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="game-shell" aria-label="飞机射击游戏">
+    <canvas id="game" width="980" height="680"></canvas>
+
+    <div class="hud" aria-live="polite">
+      <div class="stat-group">
+        <div class="stat">分数 <span id="score">0</span></div>
+        <div class="stat">生命 <span id="lives">3</span></div>
+        <div class="stat">关卡 <span id="level">1</span></div>
+      </div>
+      <div class="hint">方向键 / WASD 移动，空格射击</div>
+    </div>
+
+    <div class="touch-controls" aria-label="触屏控制">
+      <div class="stick" id="moveStick" aria-label="移动摇杆">
+        <div class="stick-knob" id="stickKnob"></div>
+      </div>
+      <div class="touch-actions">
+        <button class="touch-button secondary" id="pauseButton" type="button">暂停</button>
+        <button class="touch-button" id="fireButton" type="button">射击</button>
+      </div>
+    </div>
+
+    <div class="overlay">
+      <section class="panel" id="startPanel">
+        <h1>空战突击</h1>
+        <p>驾驶战机穿过云层，击落迎面而来的敌机。移动端可拖动飞机，自动开火。</p>
+        <button id="startButton" type="button">开始游戏</button>
+      </section>
+
+      <section class="panel" id="gameOverPanel" hidden>
+        <h1>任务结束</h1>
+        <p>最终得分：<strong id="finalScore">0</strong></p>
+        <button id="restartButton" type="button">再来一局</button>
+      </section>
+    </div>
+  </main>
+
+  <script>
+    const canvas = document.querySelector("#game");
+    const ctx = canvas.getContext("2d");
+    const scoreEl = document.querySelector("#score");
+    const livesEl = document.querySelector("#lives");
+    const levelEl = document.querySelector("#level");
+    const finalScoreEl = document.querySelector("#finalScore");
+    const startPanel = document.querySelector("#startPanel");
+    const gameOverPanel = document.querySelector("#gameOverPanel");
+    const startButton = document.querySelector("#startButton");
+    const restartButton = document.querySelector("#restartButton");
+    const moveStick = document.querySelector("#moveStick");
+    const stickKnob = document.querySelector("#stickKnob");
+    const fireButton = document.querySelector("#fireButton");
+    const pauseButton = document.querySelector("#pauseButton");
+
+    const keys = new Set();
+    const bullets = [];
+    const enemies = [];
+    const enemyShots = [];
+    const sparks = [];
+    const clouds = [];
+    const stars = [];
+
+    let state = "ready";
+    let score = 0;
+    let lives = 3;
+    let level = 1;
+    let lastTime = 0;
+    let fireTimer = 0;
+    let enemyTimer = 0;
+    let enemyFireTimer = 0;
+    let touchActive = false;
+    let dragPointerId = null;
+    let stickPointerId = null;
+    let firePointerId = null;
+    let pausedByTouch = false;
+
+    const virtualInput = { x: 0, y: 0 };
+
+    const player = {
+      x: canvas.width / 2,
+      y: canvas.height - 92,
+      width: 54,
+      height: 62,
+      speed: 390,
+      invincible: 0
+    };
+
+    function resizeCanvas() {
+      const rect = canvas.getBoundingClientRect();
+      const scale = window.devicePixelRatio || 1;
+      canvas.width = Math.round(rect.width * scale);
+      canvas.height = Math.round(rect.height * scale);
+      ctx.setTransform(scale, 0, 0, scale, 0, 0);
+      player.x = clamp(player.x, 34, rect.width - 34);
+      player.y = clamp(player.y, 52, rect.height - 42);
+    }
+
+    function width() {
+      return canvas.getBoundingClientRect().width;
+    }
+
+    function height() {
+      return canvas.getBoundingClientRect().height;
+    }
+
+    function clamp(value, min, max) {
+      return Math.max(min, Math.min(max, value));
+    }
+
+    function rand(min, max) {
+      return Math.random() * (max - min) + min;
+    }
+
+    function resetWorld() {
+      score = 0;
+      lives = 3;
+      level = 1;
+      bullets.length = 0;
+      enemies.length = 0;
+      enemyShots.length = 0;
+      sparks.length = 0;
+      clouds.length = 0;
+      stars.length = 0;
+      player.x = width() / 2;
+      player.y = height() - 92;
+      player.invincible = 1.8;
+      fireTimer = 0;
+      enemyTimer = 0;
+      enemyFireTimer = 1.2;
+
+      for (let i = 0; i < 34; i += 1) {
+        stars.push({ x: rand(0, width()), y: rand(0, height()), r: rand(0.7, 1.9), speed: rand(18, 58) });
+      }
+
+      for (let i = 0; i < 8; i += 1) {
+        clouds.push(makeCloud(rand(-80, width()), rand(0, height())));
+      }
+
+      syncHud();
+    }
+
+    function makeCloud(x = rand(-60, width()), y = -90) {
+      return {
+        x,
+        y,
+        width: rand(92, 210),
+        height: rand(28, 62),
+        speed: rand(18, 46),
+        alpha: rand(0.11, 0.28)
+      };
+    }
+
+    function syncHud() {
+      scoreEl.textContent = score;
+      livesEl.textContent = lives;
+      levelEl.textContent = level;
+    }
+
+    function startGame() {
+      resizeCanvas();
+      resetWorld();
+      state = "playing";
+      startPanel.hidden = true;
+      gameOverPanel.hidden = true;
+    }
+
+    function endGame() {
+      state = "over";
+      finalScoreEl.textContent = score;
+      gameOverPanel.hidden = false;
+    }
+
+    function shoot() {
+      bullets.push({ x: player.x - 14, y: player.y - 38, width: 5, height: 18, speed: 660 });
+      bullets.push({ x: player.x + 14, y: player.y - 38, width: 5, height: 18, speed: 660 });
+    }
+
+    function spawnEnemy() {
+      const size = rand(34, 56);
+      const fast = Math.random() > 0.72;
+      enemies.push({
+        x: rand(size, width() - size),
+        y: -size,
+        width: size,
+        height: size * 1.08,
+        speed: (fast ? rand(170, 230) : rand(85, 145)) + level * 10,
+        wobble: rand(1.4, 3.4),
+        phase: rand(0, Math.PI * 2),
+        hp: fast ? 1 : 2,
+        points: fast ? 120 : 80,
+        kind: fast ? "scout" : "fighter"
+      });
+    }
+
+    function fireEnemyShot(enemy) {
+      enemyShots.push({
+        x: enemy.x,
+        y: enemy.y + enemy.height * 0.45,
+        width: 7,
+        height: 16,
+        speed: 235 + level * 12
+      });
+    }
+
+    function explode(x, y, color = "#ffca52", count = 16) {
+      for (let i = 0; i < count; i += 1) {
+        sparks.push({
+          x,
+          y,
+          vx: rand(-150, 150),
+          vy: rand(-130, 130),
+          radius: rand(1.6, 4.2),
+          life: rand(0.35, 0.75),
+          maxLife: 0.75,
+          color
+        });
+      }
+    }
+
+    function rectsOverlap(a, b) {
+      return Math.abs(a.x - b.x) < (a.width + b.width) / 2 &&
+        Math.abs(a.y - b.y) < (a.height + b.height) / 2;
+    }
+
+    function damagePlayer() {
+      if (player.invincible > 0) return;
+      lives -= 1;
+      player.invincible = 1.8;
+      explode(player.x, player.y, "#8bd8ff", 22);
+      syncHud();
+      if (lives <= 0) endGame();
+    }
+
+    function update(dt) {
+      if (state === "paused") {
+        updateBackground(dt);
+        updateSparks(dt);
+        return;
+      }
+
+      if (state !== "playing") {
+        updateBackground(dt);
+        updateSparks(dt);
+        return;
+      }
+
+      level = Math.floor(score / 900) + 1;
+      player.invincible = Math.max(0, player.invincible - dt);
+      updateBackground(dt);
+      updatePlayer(dt);
+      updateWeapons(dt);
+      updateEnemies(dt);
+      updateSparks(dt);
+      syncHud();
+    }
+
+    function updatePlayer(dt) {
+      let dx = 0;
+      let dy = 0;
+      if (keys.has("ArrowLeft") || keys.has("a")) dx -= 1;
+      if (keys.has("ArrowRight") || keys.has("d")) dx += 1;
+      if (keys.has("ArrowUp") || keys.has("w")) dy -= 1;
+      if (keys.has("ArrowDown") || keys.has("s")) dy += 1;
+      dx += virtualInput.x;
+      dy += virtualInput.y;
+
+      if (dx || dy) {
+        const length = Math.hypot(dx, dy);
+        player.x += (dx / length) * player.speed * dt;
+        player.y += (dy / length) * player.speed * dt;
+      }
+
+      player.x = clamp(player.x, 30, width() - 30);
+      player.y = clamp(player.y, 46, height() - 38);
+    }
+
+    function updateWeapons(dt) {
+      fireTimer -= dt;
+      const firing = keys.has(" ") || touchActive;
+      if (firing && fireTimer <= 0) {
+        shoot();
+        fireTimer = 0.16;
+      }
+
+      for (let i = bullets.length - 1; i >= 0; i -= 1) {
+        bullets[i].y -= bullets[i].speed * dt;
+        if (bullets[i].y < -30) bullets.splice(i, 1);
+      }
+
+      for (let i = enemyShots.length - 1; i >= 0; i -= 1) {
+        const shot = enemyShots[i];
+        shot.y += shot.speed * dt;
+        if (shot.y > height() + 30) {
+          enemyShots.splice(i, 1);
+          continue;
+        }
+        if (rectsOverlap(shot, player)) {
+          enemyShots.splice(i, 1);
+          damagePlayer();
+        }
+      }
+    }
+
+    function updateEnemies(dt) {
+      enemyTimer -= dt;
+      enemyFireTimer -= dt;
+
+      if (enemyTimer <= 0) {
+        spawnEnemy();
+        enemyTimer = Math.max(0.35, 1.05 - level * 0.06);
+      }
+
+      if (enemyFireTimer <= 0 && enemies.length) {
+        const visible = enemies.filter((enemy) => enemy.y > 20);
+        if (visible.length) fireEnemyShot(visible[Math.floor(rand(0, visible.length))]);
+        enemyFireTimer = Math.max(0.55, 1.25 - level * 0.055);
+      }
+
+      for (let e = enemies.length - 1; e >= 0; e -= 1) {
+        const enemy = enemies[e];
+        enemy.y += enemy.speed * dt;
+        enemy.phase += enemy.wobble * dt;
+        enemy.x += Math.sin(enemy.phase) * 38 * dt;
+
+        if (enemy.y > height() + enemy.height) {
+          enemies.splice(e, 1);
+          continue;
+        }
+
+        if (rectsOverlap(enemy, player)) {
+          enemies.splice(e, 1);
+          explode(enemy.x, enemy.y, "#ff7f5a", 18);
+          damagePlayer();
+          continue;
+        }
+
+        for (let b = bullets.length - 1; b >= 0; b -= 1) {
+          if (rectsOverlap(enemy, bullets[b])) {
+            bullets.splice(b, 1);
+            enemy.hp -= 1;
+            explode(enemy.x, enemy.y, "#ffd35e", 6);
+            if (enemy.hp <= 0) {
+              score += enemy.points;
+              explode(enemy.x, enemy.y, enemy.kind === "scout" ? "#ff996f" : "#ffca52", 18);
+              enemies.splice(e, 1);
+            }
+            break;
+          }
+        }
+      }
+    }
+
+    function updateBackground(dt) {
+      for (const star of stars) {
+        star.y += star.speed * dt;
+        if (star.y > height()) {
+          star.y = -4;
+          star.x = rand(0, width());
+        }
+      }
+
+      for (const cloud of clouds) {
+        cloud.y += cloud.speed * dt;
+        if (cloud.y > height() + 80) {
+          Object.assign(cloud, makeCloud(rand(-90, width()), rand(-120, -40)));
+        }
+      }
+    }
+
+    function updateSparks(dt) {
+      for (let i = sparks.length - 1; i >= 0; i -= 1) {
+        const spark = sparks[i];
+        spark.x += spark.vx * dt;
+        spark.y += spark.vy * dt;
+        spark.vy += 120 * dt;
+        spark.life -= dt;
+        if (spark.life <= 0) sparks.splice(i, 1);
+      }
+    }
+
+    function draw() {
+      const w = width();
+      const h = height();
+      ctx.clearRect(0, 0, w, h);
+      drawSky(w, h);
+      drawPlayer();
+      drawBullets();
+      drawEnemies();
+      drawSparks();
+    }
+
+    function drawSky(w, h) {
+      const gradient = ctx.createLinearGradient(0, 0, 0, h);
+      gradient.addColorStop(0, "#123d61");
+      gradient.addColorStop(0.45, "#176f82");
+      gradient.addColorStop(1, "#1d3142");
+      ctx.fillStyle = gradient;
+      ctx.fillRect(0, 0, w, h);
+
+      ctx.fillStyle = "rgba(255, 255, 255, 0.72)";
+      for (const star of stars) {
+        ctx.beginPath();
+        ctx.arc(star.x, star.y, star.r, 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      for (const cloud of clouds) {
+        ctx.fillStyle = `rgba(234, 247, 255, ${cloud.alpha})`;
+        roundedCloud(cloud.x, cloud.y, cloud.width, cloud.height);
+      }
+    }
+
+    function roundedCloud(x, y, w, h) {
+      ctx.beginPath();
+      ctx.ellipse(x, y, w * 0.34, h * 0.5, 0, 0, Math.PI * 2);
+      ctx.ellipse(x + w * 0.25, y - h * 0.12, w * 0.33, h * 0.62, 0, 0, Math.PI * 2);
+      ctx.ellipse(x + w * 0.52, y, w * 0.4, h * 0.46, 0, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    function drawPlayer() {
+      ctx.save();
+      ctx.translate(player.x, player.y);
+      const blink = player.invincible > 0 && Math.floor(player.invincible * 12) % 2 === 0;
+      ctx.globalAlpha = blink ? 0.48 : 1;
+
+      ctx.fillStyle = "#f1f7ff";
+      ctx.beginPath();
+      ctx.moveTo(0, -36);
+      ctx.lineTo(20, 26);
+      ctx.lineTo(0, 16);
+      ctx.lineTo(-20, 26);
+      ctx.closePath();
+      ctx.fill();
+
+      ctx.fillStyle = "#3bc4ff";
+      ctx.beginPath();
+      ctx.moveTo(0, -18);
+      ctx.lineTo(8, 12);
+      ctx.lineTo(0, 8);
+      ctx.lineTo(-8, 12);
+      ctx.closePath();
+      ctx.fill();
+
+      ctx.fillStyle = "#ffca52";
+      ctx.beginPath();
+      ctx.moveTo(-8, 28);
+      ctx.lineTo(0, 42 + Math.sin(Date.now() / 90) * 4);
+      ctx.lineTo(8, 28);
+      ctx.closePath();
+      ctx.fill();
+      ctx.restore();
+    }
+
+    function drawBullets() {
+      ctx.fillStyle = "#fff05c";
+      for (const bullet of bullets) {
+        ctx.shadowColor = "#fff05c";
+        ctx.shadowBlur = 12;
+        ctx.fillRect(bullet.x - bullet.width / 2, bullet.y - bullet.height / 2, bullet.width, bullet.height);
+      }
+      ctx.shadowBlur = 0;
+
+      ctx.fillStyle = "#ff746d";
+      for (const shot of enemyShots) {
+        ctx.beginPath();
+        ctx.roundRect(shot.x - shot.width / 2, shot.y - shot.height / 2, shot.width, shot.height, 4);
+        ctx.fill();
+      }
+    }
+
+    function drawEnemies() {
+      for (const enemy of enemies) {
+        ctx.save();
+        ctx.translate(enemy.x, enemy.y);
+        ctx.fillStyle = enemy.kind === "scout" ? "#ff8b5f" : "#d84f4b";
+        ctx.beginPath();
+        ctx.moveTo(0, enemy.height * 0.42);
+        ctx.lineTo(enemy.width * 0.45, -enemy.height * 0.18);
+        ctx.lineTo(enemy.width * 0.16, -enemy.height * 0.03);
+        ctx.lineTo(0, -enemy.height * 0.5);
+        ctx.lineTo(-enemy.width * 0.16, -enemy.height * 0.03);
+        ctx.lineTo(-enemy.width * 0.45, -enemy.height * 0.18);
+        ctx.closePath();
+        ctx.fill();
+
+        ctx.fillStyle = "rgba(255,255,255,0.72)";
+        ctx.beginPath();
+        ctx.ellipse(0, -enemy.height * 0.14, enemy.width * 0.13, enemy.height * 0.18, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+      }
+    }
+
+    function drawSparks() {
+      for (const spark of sparks) {
+        ctx.globalAlpha = Math.max(0, spark.life / spark.maxLife);
+        ctx.fillStyle = spark.color;
+        ctx.beginPath();
+        ctx.arc(spark.x, spark.y, spark.radius, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      ctx.globalAlpha = 1;
+    }
+
+    function frame(time) {
+      const dt = Math.min(0.033, (time - lastTime) / 1000 || 0);
+      lastTime = time;
+      update(dt);
+      draw();
+      requestAnimationFrame(frame);
+    }
+
+    window.addEventListener("resize", resizeCanvas);
+    window.addEventListener("keydown", (event) => {
+      const key = event.key.length === 1 ? event.key.toLowerCase() : event.key;
+      if (["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown", " ", "a", "d", "w", "s"].includes(key)) {
+        event.preventDefault();
+        keys.add(key);
+      }
+      if ((state === "ready" || state === "over") && key === " ") startGame();
+      if (key === "p" || key === "Escape") togglePause();
+    });
+
+    window.addEventListener("keyup", (event) => {
+      const key = event.key.length === 1 ? event.key.toLowerCase() : event.key;
+      keys.delete(key);
+    });
+
+    canvas.addEventListener("pointerdown", (event) => {
+      if (state !== "playing") startGame();
+      touchActive = true;
+      dragPointerId = event.pointerId;
+      moveToPointer(event);
+      canvas.setPointerCapture(event.pointerId);
+    });
+
+    canvas.addEventListener("pointermove", (event) => {
+      if (touchActive && dragPointerId === event.pointerId) moveToPointer(event);
+    });
+
+    canvas.addEventListener("pointerup", (event) => {
+      if (dragPointerId === event.pointerId) {
+        touchActive = false;
+        dragPointerId = null;
+      }
+    });
+
+    canvas.addEventListener("pointercancel", (event) => {
+      if (dragPointerId === event.pointerId) {
+        touchActive = false;
+        dragPointerId = null;
+      }
+    });
+
+    function moveToPointer(event) {
+      const rect = canvas.getBoundingClientRect();
+      player.x = clamp(event.clientX - rect.left, 30, width() - 30);
+      player.y = clamp(event.clientY - rect.top, 46, height() - 38);
+    }
+
+    startButton.addEventListener("click", startGame);
+    restartButton.addEventListener("click", startGame);
+    pauseButton.addEventListener("click", togglePause);
+
+    moveStick.addEventListener("pointerdown", (event) => {
+      if (state !== "playing") startGame();
+      stickPointerId = event.pointerId;
+      moveStick.setPointerCapture(event.pointerId);
+      updateStick(event);
+    });
+
+    moveStick.addEventListener("pointermove", (event) => {
+      if (stickPointerId === event.pointerId) updateStick(event);
+    });
+
+    moveStick.addEventListener("pointerup", resetStick);
+    moveStick.addEventListener("pointercancel", resetStick);
+
+    fireButton.addEventListener("pointerdown", (event) => {
+      if (state !== "playing") startGame();
+      event.preventDefault();
+      firePointerId = event.pointerId;
+      touchActive = true;
+      fireButton.setPointerCapture(event.pointerId);
+    });
+
+    fireButton.addEventListener("pointerup", stopTouchFire);
+    fireButton.addEventListener("pointercancel", stopTouchFire);
+
+    function togglePause() {
+      if (state === "playing") {
+        state = "paused";
+        pausedByTouch = true;
+        pauseButton.textContent = "继续";
+      } else if (state === "paused") {
+        state = "playing";
+        pausedByTouch = false;
+        pauseButton.textContent = "暂停";
+      }
+    }
+
+    function updateStick(event) {
+      const rect = moveStick.getBoundingClientRect();
+      const centerX = rect.left + rect.width / 2;
+      const centerY = rect.top + rect.height / 2;
+      const rawX = event.clientX - centerX;
+      const rawY = event.clientY - centerY;
+      const max = rect.width * 0.34;
+      const distance = Math.min(max, Math.hypot(rawX, rawY));
+      const angle = Math.atan2(rawY, rawX);
+      const knobX = Math.cos(angle) * distance;
+      const knobY = Math.sin(angle) * distance;
+      virtualInput.x = knobX / max;
+      virtualInput.y = knobY / max;
+      stickKnob.style.transform = `translate(calc(-50% + ${knobX}px), calc(-50% + ${knobY}px))`;
+    }
+
+    function resetStick(event) {
+      if (event && stickPointerId !== event.pointerId) return;
+      stickPointerId = null;
+      virtualInput.x = 0;
+      virtualInput.y = 0;
+      stickKnob.style.transform = "translate(-50%, -50%)";
+    }
+
+    function stopTouchFire(event) {
+      if (event && firePointerId !== event.pointerId) return;
+      firePointerId = null;
+      touchActive = false;
+    }
+
+    document.addEventListener("visibilitychange", () => {
+      if (document.hidden && state === "playing") togglePause();
+    });
+
+    if ("serviceWorker" in navigator && location.protocol !== "file:") {
+      navigator.serviceWorker.register("service-worker.js").catch(() => {});
+    }
+
+    resizeCanvas();
+    resetWorld();
+    requestAnimationFrame(frame);
+  </script>
+</body>
+</html>
